@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<title>생필품 재고관리</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600&display=swap">
+<style>
+/* 레이아웃: 휴대폰 폭(최대 430px) 한 칼럼. 넓은 화면에서는 가운데에 폰 크기 카드로 표시.
+   색: 녹색 기운이 도는 중성색 + 보관위치별 상태색(냉장·냉동·실온). 글꼴: 제목 Noto Serif KR, 본문 Noto Sans KR. */
+:root {
+  --bg: #eef1ef;
+  --surface: #fbfcfb;
+  --fg: #1c2421;
+  --fg-muted: #5d6b66;
+  --line: #dde3e0;
+  --head-bg: #f2f5f3;
+  --accent: #2f6b5a;
+  --cold-bg: #dcecf6;   --cold-fg: #1d5a82;
+  --frozen-bg: #e3e3f7; --frozen-fg: #3f3f9a;
+  --room-bg: #f6ead2;   --room-fg: #805a12;
+  --bad: #b3372b;
+  --field-bg: #ffffff;
+  --on-accent: #ffffff;
+  --font-display: "Noto Serif KR", "Batang", serif;
+  --font-body: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101513; --surface: #181f1c; --fg: #e8eeeb; --fg-muted: #9aa8a2; --line: #2b3632; --head-bg: #1e2723;
+    --accent: #7cc4ad;
+    --cold-bg: #1c3344; --cold-fg: #8fcbef;
+    --frozen-bg: #26264a; --frozen-fg: #b3b3f2;
+    --room-bg: #3a2f17; --room-fg: #e6c27c;
+    --bad: #f0958a;
+    --field-bg: #121816;
+    --on-accent: #0f1a16;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101513; --surface: #181f1c; --fg: #e8eeeb; --fg-muted: #9aa8a2; --line: #2b3632; --head-bg: #1e2723;
+  --accent: #7cc4ad;
+  --cold-bg: #1c3344; --cold-fg: #8fcbef;
+  --frozen-bg: #26264a; --frozen-fg: #b3b3f2;
+  --room-bg: #3a2f17; --room-fg: #e6c27c;
+  --bad: #f0958a;
+  --field-bg: #121816;
+  --on-accent: #0f1a16;
+  color-scheme: dark;
+}
+html { -webkit-text-size-adjust: 100%; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); line-height: 1.5;
+  padding-block: 16px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.phone { max-width: 430px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+@media (min-width: 560px) {
+  body { padding-block: 32px; }
+  .phone { background: var(--surface); border: 1px solid var(--line); border-radius: 28px; padding: 24px 16px 28px; box-shadow: 0 10px 40px rgba(0,0,0,.08); }
+}
+header { padding: 4px 4px 0; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.5rem; margin: 0; text-wrap: balance; }
+.sub { margin: 2px 0 0; font-size: .8125rem; color: var(--fg-muted); }
+#sections { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+section { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; min-width: 0; }
+@media (min-width: 560px) { section { background: var(--bg); } }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 14px 10px; }
+h2 { font-size: 1rem; font-weight: 700; margin: 0; }
+.count { font-size: .75rem; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .8125rem; font-variant-numeric: tabular-nums; }
+th { background: var(--head-bg); color: var(--fg-muted); font-weight: 500; font-size: .625rem; text-align: left; padding: 6px 3px; white-space: nowrap; border-block: 1px solid var(--line); }
+td { padding: 7px 3px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+th:first-child, td:first-child { padding-left: 6px; width: 1%; color: var(--fg-muted); }
+th:last-child, td:last-child { padding-right: 4px; }
+.pill { margin: 0; }
+th.c, td.c { text-align: center; }
+td.name { min-width: 3rem; word-break: keep-all; overflow-wrap: anywhere; font-weight: 500; }
+td.cur { font-weight: 700; text-align: center; min-width: 1.25rem; }
+td.cur.zero { color: var(--bad); }
+.step { display: inline-flex; align-items: center; gap: 1px; }
+.step output { display: inline-block; min-width: .85rem; text-align: center; font-weight: 500; }
+.step button {
+  width: 21px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--head-bg); color: var(--fg); font: inherit; font-size: 1rem; line-height: 1; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.step button:active:not(:disabled) { background: var(--line); }
+.step button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.step button:disabled { opacity: .35; cursor: default; }
+.loc { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; }
+.del { width: 22px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--head-bg); color: var(--bad); font: inherit; font-size: 1rem; line-height: 1; cursor: pointer; touch-action: manipulation; }
+.del.armed { width: auto; padding: 0 4px; font-size: .625rem; font-weight: 600; background: var(--bad); color: #fff; border-color: var(--bad); }
+.del:disabled { opacity: .35; cursor: default; }
+.pill { display: inline-block; padding: 1px 5px; border-radius: 999px; font-size: .625rem; font-weight: 500; white-space: nowrap; }
+.pill.냉장 { background: var(--cold-bg); color: var(--cold-fg); }
+.pill.냉동 { background: var(--frozen-bg); color: var(--frozen-fg); }
+.pill.실온 { background: var(--room-bg); color: var(--room-fg); }
+.foot { margin: 0; padding: 0 4px; font-size: .75rem; color: var(--fg-muted); }
+.add { display: flex; gap: 6px; padding: 10px 12px 12px; border-top: 1px solid var(--line); }
+.add input { min-width: 0; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--field-bg); color: var(--fg); font: inherit; font-size: 16px; }
+.add input[type="text"] { flex: 1; }
+.add input[type="number"] { width: 4.25rem; text-align: center; }
+.add input:focus-visible, .add button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.add button { height: 36px; padding: 0 14px; border: 0; border-radius: 8px; background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 500; cursor: pointer; touch-action: manipulation; }
+.add input:disabled, .add button:disabled { opacity: .45; cursor: default; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.scan-body { padding: 0 14px 12px; display: flex; flex-direction: column; gap: 10px; }
+.scan-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--head-bg); color: var(--fg); font: inherit; font-weight: 500; cursor: pointer; touch-action: manipulation; }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.scan-msg { margin: 0; font-size: .8125rem; color: var(--fg-muted); }
+.scan-msg:empty, #review:empty { display: none; }
+.scan-actions .btn { flex: 1 1 0; min-width: 0; padding: 0 10px; }
+.rv { display: grid; grid-template-columns: 22px minmax(0, 1fr) 3.5rem 5.5rem; gap: 6px; align-items: center; }
+.rv input[type="text"], .rv input[type="number"], .rv select { min-width: 0; height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--field-bg); color: var(--fg); font: inherit; font-size: 16px; }
+.rv input[type="number"] { text-align: center; padding: 0 4px; }
+.rv input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.rv .tag { grid-column: 2 / -1; margin-top: -2px; font-size: .6875rem; color: var(--fg-muted); }
+.scan-note { margin: 0; font-size: .6875rem; color: var(--fg-muted); }
+#status { margin: 0; padding: 0 4px; min-height: 1.1em; font-size: .75rem; color: var(--bad); }
+</style>
+</head>
+<body>
+
+<main class="phone">
+  <header>
+    <h1>생필품 재고관리</h1>
+  </header>
+  <section id="scan">
+    <div class="sec-head"><h2>영수증으로 등록</h2></div>
+    <div class="scan-body">
+      <div class="scan-actions">
+        <button type="button" class="btn primary" id="scan-camera">영수증 사진 찍기</button>
+        <button type="button" class="btn" id="scan-album">앨범에서 선택</button>
+      </div>
+      <input class="sr" id="file-camera" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+      <input class="sr" id="file-album" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
+      <p class="scan-msg" id="scan-msg" role="status" aria-live="polite"></p>
+      <div id="review"></div>
+      <p class="scan-note">인터넷 연결이 필요합니다. 처음에는 한국어 인식 데이터를 내려받아 시간이 걸립니다.</p>
+    </div>
+  </section>
+  <div id="sections"></div>
+  <p class="foot" id="foot">− / + 버튼으로 수량을 바꾸거나 각 표 아래 입력칸이나 영수증 사진으로 품목을 추가하면 이 기기의 브라우저에 자동 저장됩니다. 현재 = 입고 − 사용</p>
+  <p id="status" role="status" aria-live="polite"></p>
+</main>
+
+<script>
+(function () {
+  // 품목 목록: [번호, 구분, 보관위치, 품목]. 수량(입고·사용)은 저장소의 stock/<번호> 문서에 있다.
+  var CATALOG = [
+    [1, '일반용품', '실온', '초코하임'],
+    [2, '일반용품', '실온', '초코파이(12입)'],
+    [3, '일반용품', '실온', '쿠크다스 화이트'],
+    [4, '냉장고', '냉장', '국순당 생막걸리'],
+    [5, '냉장고', '냉장', '국순당 쌀막걸리'],
+    [6, '냉장고', '냉장', '박복녀 합천돼지국밥'],
+    [7, '냉장고', '냉동', '새우볶음밥'],
+    [8, '일반용품', '실온', '페브리즈 다우니에이프릴향'],
+    [9, '냉장고', '냉장', '청양고추'],
+    [10, '냉장고', '냉장', '빙그레 요구르트'],
+    [11, '냉장고', '냉장', '해든나라 버섯뚝배기불고기'],
+    [12, '냉장고', '냉동', '원조야채만두'],
+    [13, '일반용품', '실온', '무파마 탕면(4개입)'],
+    [14, '냉장고', '냉동', '버팔로 윙'],
+    [15, '냉장고', '냉장', '푸르밀 밀크플러스(2입)'],
+    [16, '냉장고', '냉동', '개성군만두잡채'],
+    [17, '냉장고', '냉동', '섬진강재첩국'],
+    [18, '냉장고', '냉장', '해든나라 갈비탕'],
+    [19, '냉장고', '냉동', '햄야채볶음밥']
+  ];
+  var GROUPS = [
+    { title: '1. 냉장고 · 냉장', cat: '냉장고', store: '냉장' },
+    { title: '2. 냉장고 · 냉동', cat: '냉장고', store: '냉동' },
+    { title: '3. 일반용품', cat: '일반용품', store: '실온' }
+  ];
+  var HEAD = [['번호', ''], ['품목', ''], ['입고', 'c'], ['사용', 'c'], ['현재', 'c'], ['삭제', 'c']];
+
+  var state = {};   // 화면에 보이는 수량: id -> {received, used}
+  var server = {};  // 저장소가 마지막으로 알려준 수량
+  var dirty = {};   // 저장 대기 중인 변경 횟수
+  var chain = {};   // 문서별 저장 순서
+  var refs = {};    // id -> 행의 DOM 요소들
+  var col = null;
+  var canWrite = true;
+  var statusEl = document.getElementById('status');
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function say(msg) { statusEl.textContent = msg || ''; }
+
+  // ---- 수량 변경 함수 -------------------------------------------------
+  function addReceived(id, delta) { change(id, delta, 0); }   // 입고수량 증감
+  function addUsed(id, delta) { change(id, 0, delta); }       // 사용수량 증감 (사용하면 +1, 취소하면 -1)
+
+  function change(id, dReceived, dUsed) {
+    var s = state[id];
+    if (!s || !canWrite || !col) return;
+    var received = s.received + dReceived;
+    var used = s.used + dUsed;
+    if (received < 0 || used < 0 || used > received) return; // 현재수량이 음수가 되지 않게
+    state[id] = { received: received, used: used };
+    dirty[id] = (dirty[id] || 0) + 1;
+    paint(id);
+    save(id);
+  }
+
+  function save(id) {
+    chain[id] = (chain[id] || Promise.resolve()).then(function () {
+      var s = state[id];
+      return col.doc(String(id)).update({ received: s.received, used: s.used }).then(function () {
+        say('');
+      }, function (e) {
+        // 저장 실패: 저장소 값으로 되돌린다
+        if (server[id]) state[id] = { received: server[id].received, used: server[id].used };
+        say('저장하지 못했습니다. 수량을 되돌렸습니다.');
+      });
+    }).then(function () {
+      dirty[id] = Math.max(0, (dirty[id] || 1) - 1);
+      if (!dirty[id] && server[id]) state[id] = { received: server[id].received, used: server[id].used };
+      paint(id);
+    });
+  }
+
+  // ---- 화면 ----------------------------------------------------------
+  function stepper(label, onMinus, onPlus) {
+    var wrap = el('span', 'step');
+    var minus = el('button', '', '−');
+    minus.type = 'button';
+    minus.setAttribute('aria-label', label + ' 줄이기');
+    var out = el('output', '', '—');
+    var plus = el('button', '', '+');
+    plus.type = 'button';
+    plus.setAttribute('aria-label', label + ' 늘리기');
+    minus.addEventListener('click', onMinus);
+    plus.addEventListener('click', onPlus);
+    wrap.append(minus, out, plus);
+    return { wrap: wrap, minus: minus, plus: plus, out: out };
+  }
+
+  var info = {};     // id -> {name, gi}
+  var bodies = [];   // 섹션별 tbody
+  var counts = [];   // 섹션별 품목 수 표시
+  var forms = [];    // 섹션별 추가 입력 칸
+  var maxNo = 19;    // 지금까지 쓴 가장 큰 번호
+  var GROUP_BY_KEY = { cold: 0, frozen: 1, room: 2 };
+  var KEY_BY_GROUP = ['cold', 'frozen', 'room'];
+
+  function addRow(gi, id, no, name) {
+    var store = GROUPS[gi].store;
+    var tr = el('tr');
+    tr.appendChild(el('td', '', bodies[gi].children.length + 1)); // 섹션별로 1번부터
+    tr.appendChild(el('td', 'name', name));
+
+    var rc = stepper(name + ' 입고수량',
+      function () { addReceived(id, -1); },
+      function () { addReceived(id, 1); });
+    var tdR = el('td', 'c'); tdR.appendChild(rc.wrap); tr.appendChild(tdR);
+
+    var us = stepper(name + ' 사용수량',
+      function () { addUsed(id, -1); },
+      function () { addUsed(id, 1); });
+    var tdU = el('td', 'c'); tdU.appendChild(us.wrap); tr.appendChild(tdU);
+
+    var cur = el('td', 'cur', '—');
+    tr.appendChild(cur);
+
+    var last = el('td');
+    var lastBox = el('div', 'loc');
+    last.appendChild(lastBox);
+    tr.appendChild(last);
+
+    var del = el('button', 'del', '×');
+    del.type = 'button';
+    del.setAttribute('aria-label', name + ' 삭제');
+    del.addEventListener('click', function () { onDelete(id, del); });
+    lastBox.appendChild(del);
+
+    refs[id] = { rc: rc, us: us, cur: cur, tr: tr, del: del };
+    info[id] = { name: name, gi: gi };
+    bodies[gi].appendChild(tr);
+    counts[gi].textContent = bodies[gi].children.length + '종';
+    paint(id);
+  }
+
+  // 품목 삭제: 한 번 누르면 '확인', 3초 안에 다시 누르면 삭제한다
+  var armedTimers = {};
+  function onDelete(id, btn) {
+    if (!col || !canWrite) return;
+    if (!btn.classList.contains('armed')) {
+      btn.classList.add('armed');
+      btn.textContent = '확인';
+      armedTimers[id] = setTimeout(function () { btn.classList.remove('armed'); btn.textContent = '×'; }, 3000);
+      return;
+    }
+    clearTimeout(armedTimers[id]);
+    btn.disabled = true;
+    col.doc(String(id)).update({ deleted: true }).then(function () { removeRow(id); say(''); }, function () {
+      btn.disabled = false; btn.classList.remove('armed'); btn.textContent = '×';
+      say('삭제하지 못했습니다. 다시 시도해 주세요.');
+    });
+  }
+
+  function removeRow(id) {
+    var r = refs[id];
+    if (!r) return;
+    var gi = info[id].gi;
+    r.tr.remove();
+    delete refs[id]; delete info[id]; delete state[id]; delete server[id];
+    Array.prototype.forEach.call(bodies[gi].children, function (tr, i) { tr.firstChild.textContent = i + 1; }); // 번호를 1번부터 다시 매긴다
+    counts[gi].textContent = bodies[gi].children.length + '종';
+  }
+
+  // 새 품목 추가: 품목명과 입고수량을 받아 stock/<새 id> 문서로 저장한다
+  function addItem(gi, nameEl, qtyEl, btn) {
+    if (!col || !canWrite) return;
+    var name = nameEl.value.trim();
+    var q = Math.floor(Number(qtyEl.value));
+    if (!name) { say('품목명을 입력해 주세요.'); nameEl.focus(); return; }
+    if (!(q >= 1 && q <= 999)) { say('입고수량은 1에서 999 사이로 입력해 주세요.'); qtyEl.focus(); return; }
+    maxNo += 1;
+    var no = maxNo;
+    var id = 'n' + Date.now().toString(36) + no;
+    btn.disabled = true;
+    col.doc(id).set({ name: name, group: KEY_BY_GROUP[gi], no: no, received: q, used: 0 }).then(function () {
+      nameEl.value = '';
+      qtyEl.value = '1';
+      say('');
+      btn.disabled = !canWrite;
+    }, function () {
+      say('추가하지 못했습니다. 다시 시도해 주세요.');
+      btn.disabled = false;
+    });
+  }
+
+  function buildForm(gi) {
+    var form = el('form', 'add');
+    var name = el('input');
+    name.type = 'text'; name.id = 'add-name-' + gi; name.maxLength = 40;
+    name.placeholder = '품목명'; name.autocomplete = 'off';
+    name.setAttribute('aria-label', GROUPS[gi].title + ' 새 품목명');
+    var qty = el('input');
+    qty.type = 'number'; qty.id = 'add-qty-' + gi; qty.min = '1'; qty.max = '999'; qty.value = '1';
+    qty.inputMode = 'numeric';
+    qty.setAttribute('aria-label', GROUPS[gi].title + ' 새 품목 입고수량');
+    var btn = el('button', '', '추가');
+    btn.type = 'submit';
+    form.append(name, qty, btn);
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      addItem(gi, name, qty, btn);
+    });
+    forms[gi] = { name: name, qty: qty, btn: btn };
+    return form;
+  }
+
+  function build() {
+    var root = document.getElementById('sections');
+    GROUPS.forEach(function (g, gi) {
+      var sec = el('section');
+      var head = el('div', 'sec-head');
+      head.appendChild(el('h2', '', g.title));
+      var count = el('span', 'count', '0종');
+      head.appendChild(count);
+      sec.appendChild(head);
+      counts[gi] = count;
+
+      var wrap = el('div', 'scroll');
+      var table = el('table');
+      var thead = el('thead');
+      var htr = el('tr');
+      HEAD.forEach(function (h) { htr.appendChild(el('th', h[1], h[0])); });
+      thead.appendChild(htr);
+      table.appendChild(thead);
+      var tbody = el('tbody');
+      bodies[gi] = tbody;
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      sec.appendChild(wrap);
+      sec.appendChild(buildForm(gi));
+      root.appendChild(sec);
+
+      CATALOG.forEach(function (r) {
+        if (r[1] === g.cat && r[2] === g.store) addRow(gi, r[0], r[0], r[3]);
+      });
+    });
+  }
+
+  function paint(id) {
+    var r = refs[id];
+    if (!r) return;
+    var s = state[id];
+    if (!s) {
+      r.rc.out.textContent = '—'; r.us.out.textContent = '—'; r.cur.textContent = '—';
+      r.cur.className = 'cur';
+      [r.rc.minus, r.rc.plus, r.us.minus, r.us.plus].forEach(function (b) { b.disabled = true; });
+      return;
+    }
+    var current = s.received - s.used;
+    r.rc.out.textContent = s.received;
+    r.us.out.textContent = s.used;
+    r.cur.textContent = current;
+    r.cur.className = 'cur' + (current === 0 ? ' zero' : '');
+    r.rc.minus.disabled = !canWrite || s.received <= s.used;
+    r.rc.plus.disabled = !canWrite;
+    r.us.minus.disabled = !canWrite || s.used <= 0;
+    r.us.plus.disabled = !canWrite || s.used >= s.received;
+    r.del.disabled = !canWrite;
+  }
+
+  function paintAll() { CATALOG.forEach(function (r) { paint(r[0]); }); }
+
+  // ---- 저장소 연결 ------------------------------------------------------
+  function num(v) { v = Number(v); return isFinite(v) && v >= 0 ? Math.floor(v) : 0; }
+
+  function onSnap(snap) {
+    // 새로 추가된 품목이 있으면 해당 섹션에 행을 만든다
+    var fresh = [];
+    snap.docs.forEach(function (d) {
+      var v = d.data() || {};
+      if (v.deleted) { removeRow(d.id); return; }
+      if (!refs[d.id] && typeof v.name === 'string' && v.name && GROUP_BY_KEY.hasOwnProperty(v.group)) fresh.push([d.id, v]);
+    });
+    fresh.sort(function (a, b) { return num(a[1].no) - num(b[1].no); });
+    fresh.forEach(function (f) {
+      var no = num(f[1].no);
+      if (no > maxNo) maxNo = no;
+      addRow(GROUP_BY_KEY[f[1].group], f[0], no, f[1].name);
+    });
+
+    snap.docs.forEach(function (d) {
+      var id = d.id;
+      if (!refs[id]) return;
+      var v = d.data() || {};
+      server[id] = { received: num(v.received), used: num(v.used) };
+      if (!dirty[id]) state[id] = { received: server[id].received, used: server[id].used };
+      paint(id);
+    });
+    if (!snap.metadata.fromCache) { clearTimeout(timer); say(''); }
+  }
+
+  // ---- 영수증 사진으로 품목 등록 (브라우저 안에서 글자 인식) --------------------
+  var seq = 0;
+  var scanMsg = document.getElementById('scan-msg');
+  var reviewEl = document.getElementById('review');
+  var fileCamera = document.getElementById('file-camera');
+  var fileAlbum = document.getElementById('file-album');
+  var scanBtns = [document.getElementById('scan-camera'), document.getElementById('scan-album')];
+  var GROUP_LABEL = ['냉장', '냉동', '일반용품'];
+  var OCR_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+  var ocrLoading = null;
+
+  function scanSay(m) { scanMsg.textContent = m || ''; }
+  function norm(s) { return String(s).replace(/\s+/g, '').toLowerCase(); }
+
+  function findExisting(gi, name) {
+    var n = norm(name);
+    var ids = Object.keys(info);
+    for (var i = 0; i < ids.length; i++) {
+      if (info[ids[i]].gi === gi && norm(info[ids[i]].name) === n) return ids[i];
+    }
+    return null;
+  }
+
+  // 상품명에서 용량·제조사 표기를 지운다 (예: "초코하임 284g/크라운제과" -> "초코하임")
+  function cleanName(s) {
+    s = String(s).split('/')[0];
+    s = s.replace(/[(（][^)）]*\d+\s*(?:ml|g|kg|l)[^)）]*[)）]/gi, ' ');
+    s = s.replace(/\d+(?:\.\d+)?\s*(?:ml|kg|g|l)(?![a-z])/gi, ' ');
+    s = s.replace(/[|_]+/g, ' ').replace(/\s+/g, ' ');
+    s = s.replace(/^[\s)\]*·.,:;-]+|[\s(\[*·.,:;-]+$/g, '');
+    return s.slice(0, 40);
+  }
+
+  // 품목 이름으로 보관 위치를 추정한다 (0 냉장, 1 냉동, 2 일반용품). 틀리면 확인 화면에서 고친다.
+  var FROZEN = /냉동|만두|볶음밥|윙|치킨|너겟|돈까스|피자|아이스|재첩|튀김|핫도그|떡갈비|동그랑땡/;
+  var COLD = /우유|요구르트|요거트|막걸리|두부|계란|달걀|고추|야채|채소|국밥|갈비탕|곰탕|설렁탕|삼계탕|찌개|불고기|김치|햄|소시지|어묵|순대|치즈|버터|밀크|샐러드|생선|돼지고기|소고기|쇠고기|한우|닭고기|닭가슴살|나물|콩나물|버섯|마늘|주스|족발/;
+  function guessGroup(name) {
+    if (FROZEN.test(name)) return 1;
+    if (COLD.test(name)) return 0;
+    return 2;
+  }
+
+  // 인식된 글자에서 품목을 뽑는다. 상품 줄은 "01 상품명 ..."으로 시작하고,
+  // 바로 아래 줄에 "바코드 단가 수량(예: 2개) 금액"이 있다.
+  function parseReceipt(text) {
+    var lines = String(text).split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var items = [];
+    var seen = {};
+    var cur = null;
+    lines.forEach(function (line) {
+      var m = line.match(/^(\d{1,2})[\s.)]+([가-힣A-Za-z(].*)$/);
+      if (m && !seen[Number(m[1])] && Number(m[1]) <= 99) {
+        seen[Number(m[1])] = true;
+        cur = { name: cleanName(m[2]), qty: null };
+        items.push(cur);
+        return;
+      }
+      if (cur && cur.qty == null && !/저렴|구매시/.test(line)) {
+        var q = line.match(/(\d{1,3})\s*개(?!입)/);
+        if (q) cur.qty = Number(q[1]);
+      }
+    });
+    return items.filter(function (i) { return i.name.length >= 2; }).map(function (i) {
+      return { name: i.name, qty: i.qty >= 1 ? i.qty : 1, gi: guessGroup(i.name) };
+    });
+  }
+
+  // 점검하고 같은 품목은 합친다
+  function cleanList(list) {
+    var out = [];
+    list.forEach(function (it) {
+      var q = Math.max(1, Math.min(999, Math.floor(Number(it.qty)) || 1));
+      for (var i = 0; i < out.length; i++) {
+        if (out[i].gi === it.gi && norm(out[i].name) === norm(it.name)) { out[i].qty = Math.min(999, out[i].qty + q); return; }
+      }
+      out.push({ name: it.name, qty: q, gi: it.gi });
+    });
+    return out;
+  }
+
+  function loadOcr() {
+    if (window.Tesseract) return Promise.resolve();
+    if (!ocrLoading) {
+      ocrLoading = new Promise(function (resolve, reject) {
+        var s = document.createElement('script');
+        s.src = OCR_URL;
+        s.onload = resolve;
+        s.onerror = function () { ocrLoading = null; reject(new Error('load')); };
+        document.head.appendChild(s);
+      });
+    }
+    return ocrLoading;
+  }
+
+  // 큰 사진은 줄여서 읽는다 (빠르고 휴대폰에서도 부담이 적다)
+  function prepare(file) {
+    return new Promise(function (resolve) {
+      var done = false;
+      function finish(v) { if (!done) { done = true; resolve(v); } }
+      setTimeout(function () { finish(file); }, 10000);
+      try {
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function () {
+          try {
+            var sc = Math.min(1, 1800 / Math.max(img.naturalWidth, img.naturalHeight));
+            var c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(img.naturalWidth * sc));
+            c.height = Math.max(1, Math.round(img.naturalHeight * sc));
+            var g = c.getContext('2d');
+            g.fillStyle = '#fff';
+            g.fillRect(0, 0, c.width, c.height);
+            g.drawImage(img, 0, 0, c.width, c.height);
+            URL.revokeObjectURL(url);
+            c.toBlob(function (b) { finish(b || file); }, 'image/jpeg', 0.92);
+          } catch (e) { finish(file); }
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); finish(file); };
+        img.src = url;
+      } catch (e) { finish(file); }
+    });
+  }
+
+  function recognize(blob) {
+    return window.Tesseract.createWorker('kor', 1, {
+      logger: function (m) {
+        if (m.status === 'recognizing text') scanSay('글자를 읽는 중… ' + Math.round(m.progress * 100) + '%');
+        else if (m.status && m.status.indexOf('loading') === 0) scanSay('글자 인식 준비 중… 처음에는 시간이 걸립니다.');
+      }
+    }).then(function (worker) {
+      return worker.setParameters({ tessedit_pageseg_mode: '6' }).then(function () {
+        return worker.recognize(blob);
+      }).then(function (r) {
+        return worker.terminate().then(function () { return r.data.text; });
+      }, function (e) {
+        return worker.terminate().then(function () { throw e; });
+      });
+    });
+  }
+
+  function busy(on) { scanBtns.forEach(function (b) { b.disabled = on; }); }
+
+  function readReceipt(file) {
+    if (!file) return;
+    reviewEl.replaceChildren();
+    busy(true);
+    scanSay('글자 인식 도구를 준비하는 중입니다…');
+    loadOcr().then(function () { return prepare(file); }).then(recognize).then(function (text) {
+      var rows = cleanList(parseReceipt(text));
+      if (!rows.length) { scanSay('영수증에서 품목을 찾지 못했습니다. 영수증 전체가 선명하게 나오도록 다시 찍어 주세요.'); return; }
+      showReview(rows);
+      scanSay('읽은 품목입니다. 틀린 곳을 고치고 등록을 누르세요.');
+    }).catch(function (e) {
+      scanSay(e && e.message === 'load'
+        ? '글자 인식 도구를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.'
+        : '영수증을 읽지 못했습니다. 더 선명한 사진으로 다시 시도해 주세요.');
+    }).then(function () { busy(false); });
+  }
+
+  function showReview(rows) {
+    reviewEl.replaceChildren();
+    var items = [];
+    var list = el('div');
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.style.gap = '8px';
+
+    rows.forEach(function (r, i) {
+      var line = el('div', 'rv');
+      var cb = el('input'); cb.type = 'checkbox'; cb.checked = true; cb.id = 'rv-cb-' + i;
+      cb.setAttribute('aria-label', '등록할 품목 선택');
+      var name = el('input'); name.type = 'text'; name.value = r.name; name.maxLength = 40; name.id = 'rv-name-' + i;
+      name.setAttribute('aria-label', '품목명');
+      var qty = el('input'); qty.type = 'number'; qty.min = '1'; qty.max = '999'; qty.value = String(r.qty); qty.id = 'rv-qty-' + i;
+      qty.inputMode = 'numeric'; qty.setAttribute('aria-label', '입고수량');
+      var grp = el('select'); grp.id = 'rv-grp-' + i; grp.setAttribute('aria-label', '구분');
+      GROUP_LABEL.forEach(function (label, gi) {
+        var o = el('option', '', label); o.value = String(gi); grp.appendChild(o);
+      });
+      grp.value = String(r.gi);
+      var tag = el('div', 'tag');
+      function refreshTag() {
+        var ex = findExisting(Number(grp.value), name.value);
+        tag.textContent = ex ? '이미 있는 품목입니다. 입고수량에 더합니다.' : '새 품목으로 추가합니다.';
+      }
+      name.addEventListener('input', refreshTag);
+      grp.addEventListener('change', refreshTag);
+      refreshTag();
+      line.append(cb, name, qty, grp, tag);
+      list.appendChild(line);
+      items.push({ cb: cb, name: name, qty: qty, grp: grp });
+    });
+
+    var actions = el('div', 'scan-actions');
+    var ok = el('button', 'btn primary', '등록'); ok.type = 'button';
+    var cancel = el('button', 'btn', '취소'); cancel.type = 'button';
+    ok.addEventListener('click', function () { ok.disabled = true; registerReview(items); });
+    cancel.addEventListener('click', function () { reviewEl.replaceChildren(); scanSay(''); });
+    actions.append(ok, cancel);
+    reviewEl.append(list, actions);
+  }
+
+  function registerReview(items) {
+    var count = 0;
+    var writes = [];
+    items.forEach(function (r) {
+      if (!r.cb.checked) return;
+      var name = r.name.value.trim();
+      var q = Math.floor(Number(r.qty.value));
+      var gi = Number(r.grp.value);
+      if (!name || !(q >= 1 && q <= 999)) return;
+      var ex = findExisting(gi, name);
+      if (ex) {
+        change(ex, q, 0); // 이미 있는 품목: 입고수량에 더한다
+      } else {
+        maxNo += 1;
+        seq += 1;
+        var id = 'n' + Date.now().toString(36) + seq;
+        writes.push(col.doc(id).set({ name: name, group: KEY_BY_GROUP[gi], no: maxNo, received: q, used: 0 }));
+      }
+      count++;
+    });
+    if (!count) { reviewEl.replaceChildren(); scanSay('등록할 품목이 없습니다.'); return; }
+    Promise.all(writes).then(function () {
+      reviewEl.replaceChildren();
+      scanSay(count + '개 품목을 등록했습니다.');
+    }, function () {
+      scanSay('일부 품목을 등록하지 못했습니다. 표를 확인해 주세요.');
+    });
+  }
+
+  function initScan() {
+    scanBtns[0].addEventListener('click', function () { fileCamera.click(); });
+    scanBtns[1].addEventListener('click', function () { fileAlbum.click(); });
+    [fileCamera, fileAlbum].forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        var f = inp.files && inp.files[0];
+        inp.value = '';
+        readReceipt(f);
+      });
+    });
+  }
+
+  var timer = null;
+  build();
+  initScan();
+
+  // ---- 저장: 이 기기의 브라우저(localStorage)에 저장한다 ----------------------
+  var KEY = 'stock-mobile-v1';
+  var DEFAULTS = { 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 7: 1, 8: 1, 9: 1, 10: 1, 11: 2, 12: 3, 13: 1, 14: 2, 15: 1, 16: 1, 17: 3, 18: 1, 19: 1 }; // 2026.11.05 영수증 입고수량
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) { saved = null; }
+  var data = (saved && typeof saved === 'object') ? saved : {};
+  if (!saved) {
+    Object.keys(DEFAULTS).forEach(function (k) { data[k] = { received: DEFAULTS[k], used: 0 }; });
+  }
+  var listeners = [];
+  function persist() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { say('이 브라우저에서는 저장할 수 없습니다. 새로고침하면 수량이 처음으로 돌아갑니다.'); } }
+  function snapshot() {
+    return {
+      docs: Object.keys(data).map(function (id) { return { id: id, data: function () { return data[id]; } }; }),
+      metadata: { fromCache: false }
+    };
+  }
+  function notify() { listeners.forEach(function (fn) { fn(snapshot()); }); }
+  col = {
+    doc: function (id) {
+      return {
+        set: function (v) { data[id] = v; persist(); setTimeout(notify, 0); return Promise.resolve(); },
+        update: function (v) {
+          var cur = data[id] || {};
+          Object.keys(v).forEach(function (k) { cur[k] = v[k]; });
+          data[id] = cur; persist(); setTimeout(notify, 0); return Promise.resolve();
+        }
+      };
+    },
+    onSnapshot: function (next) {
+      listeners.push(next);
+      setTimeout(function () { next(snapshot()); }, 0);
+    }
+  };
+  col.onSnapshot(onSnap);
+})();
+</script>
+
+</body>
+</html>
